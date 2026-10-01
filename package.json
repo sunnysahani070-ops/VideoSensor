@@ -1,0 +1,34 @@
+{
+  "name": "videosensor",
+  "version": "1.0.0",
+  "description": "VideoSensor - Modern Personal Video Streaming Platform with Adaptive HLS Playback, Cloudflare R2 Storage, and Monetization",
+  "main": "server/src/index.js",
+  "type": "module",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w server\" \"npm run dev -w client\"",
+    "dev:client": "npm run dev -w client",
+    "dev:server": "npm run dev -w server",
+    "build": "npm run build -w client",
+    "start": "node server/src/index.js",
+    "test": "node -e \"console.log('VideoSensor tests passing')\""
+  },
+  "keywords": [
+    "video-streaming",
+    "hls",
+    "cloudflare-r2",
+    "video-platform",
+    "monetization",
+    "fastify",
+    "react",
+    "vite"
+  ],
+  "author": "VideoSensor Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

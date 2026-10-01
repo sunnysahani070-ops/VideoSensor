@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # VideoSensor Application (API + Frontend + HLS Transcoder)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: videosensor-app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - STORAGE_MODE=local
+      - S3_ENDPOINT=http://minio:9000
+      - S3_REGION=auto
+      - S3_BUCKET=videosensor-streams
+      - S3_ACCESS_KEY_ID=minioadmin
+      - S3_SECRET_ACCESS_KEY=minioadmin
+      - S3_FORCE_PATH_STYLE=true
+      - S3_PUBLIC_BASE_URL=http://localhost:9000/videosensor-streams
+    volumes:
+      - app_uploads:/app/uploads
+    depends_on:
+      - minio
+      - redis
+
+  # Redis for job queue & caching
+  redis:
+    image: redis:7-alpine
+    container_name: videosensor-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # MinIO for Local S3 Simulation
+  minio:
+    image: minio/minio:latest
+    container_name: videosensor-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+volumes:
+  app_uploads:
+  redis_data:
+  minio_data:
