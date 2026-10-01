@@ -12,17 +12,24 @@ import {
   User,
   Sliders,
   BarChart3,
-  Video as VideoIcon
+  Video as VideoIcon,
+  LogIn,
+  LogOut,
+  ShieldCheck
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { LoginModal } from './LoginModal';
 
 interface NavbarProps {
   onToggleSidebar: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
+  const { user, isAuthenticated, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleSearch = (e: React.FormEvent) => {
@@ -158,59 +165,86 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
           )}
         </div>
 
-        {/* User Profile Avatar Dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2 p-1 rounded-full border border-surface-border hover:border-brand-500 transition-colors"
-          >
-            <img
-              src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=80&q=80"
-              alt="User Avatar"
-              className="w-8 h-8 rounded-full object-cover"
-            />
-          </button>
+        {/* User Profile / Admin Authentication */}
+        {isAuthenticated ? (
+          <div className="relative">
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center gap-2 p-1 rounded-full border border-surface-border hover:border-brand-500 transition-colors"
+            >
+              <img
+                src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=80&q=80"
+                alt="User Avatar"
+                className="w-8 h-8 rounded-full object-cover"
+              />
+            </button>
 
-          {showUserMenu && (
-            <div className="absolute right-0 mt-2 w-56 rounded-2xl glass-dropdown p-2 text-xs z-50 animate-in fade-in zoom-in-95">
-              <div className="p-3 border-b border-surface-border mb-1">
-                <p className="font-semibold text-white">Sunny Architect</p>
-                <p className="text-slate-400 text-[11px]">admin@videosensor.com</p>
-                <span className="inline-block px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-300 text-[10px] font-semibold mt-1">
-                  Creator & Platform Admin
-                </span>
+            {showUserMenu && (
+              <div className="absolute right-0 mt-2 w-56 rounded-2xl glass-dropdown p-2 text-xs z-50 animate-in fade-in zoom-in-95">
+                <div className="p-3 border-b border-surface-border mb-1">
+                  <p className="font-semibold text-white">{user?.name || 'Administrator'}</p>
+                  <p className="text-slate-400 text-[11px] truncate">{user?.email}</p>
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-brand-500/20 text-brand-300 text-[10px] font-semibold mt-1">
+                    <ShieldCheck className="w-3 h-3 text-brand-400" />
+                    Admin
+                  </span>
+                </div>
+
+                <Link
+                  to="/studio"
+                  onClick={() => setShowUserMenu(false)}
+                  className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-white/10 text-slate-200 transition-colors"
+                >
+                  <VideoIcon className="w-4 h-4 text-brand-400" />
+                  <span>Video Studio & Uploads</span>
+                </Link>
+
+                <Link
+                  to="/analytics"
+                  onClick={() => setShowUserMenu(false)}
+                  className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-white/10 text-slate-200 transition-colors"
+                >
+                  <BarChart3 className="w-4 h-4 text-emerald-400" />
+                  <span>Monetization & Analytics</span>
+                </Link>
+
+                <Link
+                  to="/settings"
+                  onClick={() => setShowUserMenu(false)}
+                  className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-white/10 text-slate-200 transition-colors"
+                >
+                  <Sliders className="w-4 h-4 text-cyan-400" />
+                  <span>Storage & Platform Settings</span>
+                </Link>
+
+                <div className="h-[1px] bg-surface-border my-1" />
+
+                <button
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    logout();
+                  }}
+                  className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-rose-500/10 text-rose-400 transition-colors text-left"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Sign Out</span>
+                </button>
               </div>
-
-              <Link
-                to="/studio"
-                onClick={() => setShowUserMenu(false)}
-                className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-white/10 text-slate-200 transition-colors"
-              >
-                <VideoIcon className="w-4 h-4 text-brand-400" />
-                <span>Video Studio & Uploads</span>
-              </Link>
-
-              <Link
-                to="/analytics"
-                onClick={() => setShowUserMenu(false)}
-                className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-white/10 text-slate-200 transition-colors"
-              >
-                <BarChart3 className="w-4 h-4 text-emerald-400" />
-                <span>Monetization & Analytics</span>
-              </Link>
-
-              <Link
-                to="/settings"
-                onClick={() => setShowUserMenu(false)}
-                className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-white/10 text-slate-200 transition-colors"
-              >
-                <Sliders className="w-4 h-4 text-cyan-400" />
-                <span>Storage & Platform Settings</span>
-              </Link>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => setIsLoginModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-card border border-surface-border hover:border-brand-500 text-slate-200 hover:text-white text-xs font-medium transition-colors"
+          >
+            <LogIn className="w-4 h-4 text-brand-400" />
+            <span>Sign In</span>
+          </button>
+        )}
       </div>
+
+      {/* Admin Login Modal */}
+      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
     </header>
   );
 };

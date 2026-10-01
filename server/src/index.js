@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import videoRoutes from './routes/videos.js';
 import analyticsRoutes from './routes/analytics.js';
 import settingsRoutes from './routes/settings.js';
+import authRoutes from './routes/auth.js';
 import { generateMasterPlaylist } from './services/transcoder.js';
 import { initDatabase } from './services/db.js';
 
@@ -35,6 +36,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(UPLOADS_DIR));
 
 // API Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/videos', videoRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/settings', settingsRoutes);

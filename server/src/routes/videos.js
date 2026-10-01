@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import { saveFile } from '../services/storage.js';
 import { createTranscodeJob, getJobStatus } from '../services/transcoder.js';
+import { requireAuth } from '../middleware/auth.js';
 import {
   getVideos,
   getVideoById,
@@ -114,8 +115,8 @@ router.post('/:id/comments', async (req, res) => {
   }
 });
 
-// POST /api/videos/upload - Video file upload & job initiation
-router.post('/upload', upload.fields([
+// POST /api/videos/upload - Video file upload & job initiation (Protected)
+router.post('/upload', requireAuth, upload.fields([
   { name: 'video', maxCount: 1 },
   { name: 'thumbnail', maxCount: 1 }
 ]), async (req, res) => {
@@ -199,8 +200,8 @@ router.get('/:id/job', (req, res) => {
   res.json({ job: job || { status: 'ready', progress: 100 } });
 });
 
-// DELETE /api/videos/:id - Delete video
-router.delete('/:id', async (req, res) => {
+// DELETE /api/videos/:id - Delete video (Protected)
+router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     await removeVideo(id);

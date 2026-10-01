@@ -1,20 +1,25 @@
 import express from 'express';
-import { storageConfig, updateStorageConfig, testR2Connection } from '../services/storage.js';
+import { storageConfig, updateStorageConfig, testR2Connection, getActiveStorageConfig } from '../services/storage.js';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Protect ALL settings routes with Admin Authentication
+router.use(requireAuth);
+
 router.get('/', (req, res) => {
-  // Return configuration masking secrets
+  const active = getActiveStorageConfig();
+  
   res.json({
     storage: {
-      mode: storageConfig.mode,
-      endpoint: storageConfig.endpoint,
-      region: storageConfig.region,
-      bucket: storageConfig.bucket,
-      accessKeyId: storageConfig.accessKeyId ? `${storageConfig.accessKeyId.substring(0, 4)}...****` : '',
-      publicBaseUrl: storageConfig.publicBaseUrl,
-      forcePathStyle: storageConfig.forcePathStyle,
-      isConfigured: Boolean(storageConfig.endpoint && storageConfig.bucket && storageConfig.accessKeyId),
+      mode: active.mode,
+      endpoint: active.endpoint,
+      region: active.region,
+      bucket: active.bucket,
+      accessKeyId: active.accessKeyId ? `${active.accessKeyId.substring(0, 4)}...****` : '',
+      publicBaseUrl: active.publicBaseUrl,
+      forcePathStyle: active.forcePathStyle,
+      isConfigured: Boolean(active.endpoint && active.bucket && active.accessKeyId),
     },
     platform: {
       name: 'VideoSensor',
@@ -57,13 +62,14 @@ router.post('/', (req, res) => {
 });
 
 router.post('/test-storage', async (req, res) => {
+  const active = getActiveStorageConfig();
   const configToTest = {
-    endpoint: req.body.endpoint || storageConfig.endpoint,
-    region: req.body.region || storageConfig.region,
-    bucket: req.body.bucket || storageConfig.bucket,
-    accessKeyId: req.body.accessKeyId || storageConfig.accessKeyId,
-    secretAccessKey: req.body.secretAccessKey || storageConfig.secretAccessKey,
-    forcePathStyle: req.body.forcePathStyle !== undefined ? req.body.forcePathStyle : storageConfig.forcePathStyle,
+    endpoint: req.body.endpoint || active.endpoint,
+    region: req.body.region || active.region,
+    bucket: req.body.bucket || active.bucket,
+    accessKeyId: req.body.accessKeyId || active.accessKeyId,
+    secretAccessKey: req.body.secretAccessKey || active.secretAccessKey,
+    forcePathStyle: req.body.forcePathStyle !== undefined ? req.body.forcePathStyle : active.forcePathStyle,
   };
 
   if (!configToTest.endpoint || !configToTest.bucket || !configToTest.accessKeyId) {

@@ -1,6 +1,10 @@
 import express from 'express';
+import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Creator / Admin Authentication required to view revenue and analytics
+router.use(requireAuth);
 
 router.get('/', (req, res) => {
   const { period = '30d' } = req.query;

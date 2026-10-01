@@ -18,8 +18,10 @@ import {
   History,
   CloudCheck,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  Lock
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -27,6 +29,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
+  const { isAuthenticated } = useAuth();
   const primaryLinks = [
     { name: 'Home', icon: Home, path: '/' },
     { name: 'Trending & Explore', icon: Flame, path: '/explore' },
@@ -98,15 +101,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
                   to={item.path}
                   onClick={onCloseMobile}
                   className={({ isActive }) =>
-                    `flex items-center gap-3.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                    `flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                       isActive
                         ? 'bg-brand-600/20 text-brand-300 border border-brand-500/30'
                         : 'text-slate-400 hover:text-white hover:bg-surface-card'
                     }`
                   }
                 >
-                  <item.icon className="w-5 h-5 shrink-0" />
-                  <span className="lg:hidden xl:inline">{item.name}</span>
+                  <div className="flex items-center gap-3.5">
+                    <item.icon className="w-5 h-5 shrink-0" />
+                    <span className="lg:hidden xl:inline">{item.name}</span>
+                  </div>
+                  {!isAuthenticated && (
+                    <Lock className="w-3.5 h-3.5 text-slate-500 lg:hidden xl:block shrink-0" />
+                  )}
                 </NavLink>
               ))}
             </div>

@@ -2,6 +2,25 @@ import { Video, StorageConfig, AnalyticsData, TranscodeJob } from '../types';
 
 const API_BASE = '/api';
 
+function getAuthHeader(): Record<string, string> {
+  const token = localStorage.getItem('videosensor_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export async function loginAdmin(email: string, password: string): Promise<{ token: string; user: any }> {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to authenticate');
+  }
+  return data;
+}
+
 export async function fetchVideos(params?: {
   search?: string;
   category?: string;
@@ -56,6 +75,9 @@ export async function addComment(
 export async function uploadVideo(formData: FormData): Promise<{ video: Video; job: TranscodeJob }> {
   const res = await fetch(`${API_BASE}/videos/upload`, {
     method: 'POST',
+    headers: {
+      ...getAuthHeader(),
+    },
     body: formData,
   });
   if (!res.ok) {
@@ -72,8 +94,12 @@ export async function fetchJobStatus(id: string): Promise<{ job: TranscodeJob }>
 }
 
 export async function fetchAnalytics(period: string = '30d'): Promise<AnalyticsData> {
-  const res = await fetch(`${API_BASE}/analytics?period=${period}`);
-  if (!res.ok) throw new Error('Failed to fetch analytics');
+  const res = await fetch(`${API_BASE}/analytics?period=${period}`, {
+    headers: {
+      ...getAuthHeader(),
+    }
+  });
+  if (!res.ok) throw new Error('Failed to fetch analytics (Admin authentication required)');
   return res.json();
 }
 
@@ -81,8 +107,12 @@ export async function fetchSettings(): Promise<{
   storage: StorageConfig;
   platform: any;
 }> {
-  const res = await fetch(`${API_BASE}/settings`);
-  if (!res.ok) throw new Error('Failed to fetch settings');
+  const res = await fetch(`${API_BASE}/settings`, {
+    headers: {
+      ...getAuthHeader(),
+    }
+  });
+  if (!res.ok) throw new Error('Failed to fetch settings (Admin authentication required)');
   return res.json();
 }
 
@@ -93,7 +123,10 @@ export async function updateSettings(config: Partial<StorageConfig>): Promise<{
 }> {
   const res = await fetch(`${API_BASE}/settings`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
     body: JSON.stringify(config),
   });
   if (!res.ok) throw new Error('Failed to update settings');
@@ -106,7 +139,10 @@ export async function testStorageConnection(config: any): Promise<{
 }> {
   const res = await fetch(`${API_BASE}/settings/test-storage`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeader(),
+    },
     body: JSON.stringify(config),
   });
   return res.json();
@@ -115,6 +151,9 @@ export async function testStorageConnection(config: any): Promise<{
 export async function deleteVideo(id: string): Promise<{ success: boolean }> {
   const res = await fetch(`${API_BASE}/videos/${id}`, {
     method: 'DELETE',
+    headers: {
+      ...getAuthHeader(),
+    }
   });
   if (!res.ok) throw new Error('Failed to delete video');
   return res.json();
