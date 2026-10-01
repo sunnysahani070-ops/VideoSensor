@@ -8,8 +8,12 @@ import videoRoutes from './routes/videos.js';
 import analyticsRoutes from './routes/analytics.js';
 import settingsRoutes from './routes/settings.js';
 import { generateMasterPlaylist } from './services/transcoder.js';
+import { initDatabase } from './services/db.js';
 
 dotenv.config();
+
+// Initialize database connection and schemas
+initDatabase();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

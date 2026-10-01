@@ -1,9 +1,17 @@
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
-import { initialVideos } from '../data/seedVideos.js';
 import { saveFile } from '../services/storage.js';
 import { createTranscodeJob, getJobStatus } from '../services/transcoder.js';
+import {
+  getVideos,
+  getVideoById,
+  incrementViews,
+  updateLike,
+  insertComment,
+  insertVideo,
+  removeVideo
+} from '../services/db.js';
 
 const router = express.Router();
 
@@ -13,124 +21,97 @@ const upload = multer({
   limits: { fileSize: 500 * 1024 * 1024 } // 500MB
 });
 
-// In-memory data store initialized with seed videos
-let videos = [...initialVideos];
-
 // GET /api/videos - List with filtering, searching, and sorting
-router.get('/', (req, res) => {
-  const { search, category, sort = 'trending', limit } = req.query;
+router.get('/', async (req, res) => {
+  try {
+    const { search, category, sort = 'trending', limit } = req.query;
+    const result = await getVideos({ search, category, sort, limit });
 
-  let result = [...videos];
-
-  if (category && category !== 'All') {
-    result = result.filter(v => v.category.toLowerCase() === category.toLowerCase());
+    res.json({
+      videos: result,
+      total: result.length,
+    });
+  } catch (err) {
+    console.error('Error fetching videos:', err);
+    res.status(500).json({ error: 'Failed to fetch videos' });
   }
-
-  if (search) {
-    const q = search.toLowerCase();
-    result = result.filter(v => 
-      v.title.toLowerCase().includes(q) ||
-      v.description.toLowerCase().includes(q) ||
-      v.channel.name.toLowerCase().includes(q) ||
-      (v.tags && v.tags.some(t => t.toLowerCase().includes(q)))
-    );
-  }
-
-  if (sort === 'trending') {
-    result.sort((a, b) => b.views - a.views);
-  } else if (sort === 'newest') {
-    result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  } else if (sort === 'popular') {
-    result.sort((a, b) => b.likes - a.likes);
-  }
-
-  if (limit) {
-    result = result.slice(0, parseInt(limit, 10));
-  }
-
-  res.json({
-    videos: result,
-    total: result.length,
-  });
 });
 
 // GET /api/videos/:id - Video detail & view count increment
-router.get('/:id', (req, res) => {
-  const { id } = req.params;
-  const video = videos.find(v => v.id === id);
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const video = await getVideoById(id);
 
-  if (!video) {
-    return res.status(404).json({ error: 'Video not found' });
+    if (!video) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+
+    // Increment view count in background
+    await incrementViews(id);
+    video.views = (video.views || 0) + 1;
+
+    // Get related videos
+    const allVideos = await getVideos({ limit: 9 });
+    const related = allVideos.filter(v => v.id !== id).slice(0, 8);
+    const job = getJobStatus(id);
+
+    res.json({
+      video,
+      related,
+      job
+    });
+  } catch (err) {
+    console.error('Error fetching video detail:', err);
+    res.status(500).json({ error: 'Failed to fetch video detail' });
   }
-
-  // Increment view count
-  video.views = (video.views || 0) + 1;
-
-  // Get related videos (same category or top videos excluding current)
-  const related = videos
-    .filter(v => v.id !== id)
-    .slice(0, 8);
-
-  const job = getJobStatus(id);
-
-  res.json({
-    video,
-    related,
-    job
-  });
 });
 
 // POST /api/videos/:id/like - Like or dislike toggle
-router.post('/:id/like', (req, res) => {
-  const { id } = req.params;
-  const { action = 'like' } = req.body; // 'like' or 'dislike'
+router.post('/:id/like', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action = 'like' } = req.body; // 'like' or 'dislike'
 
-  const video = videos.find(v => v.id === id);
-  if (!video) {
-    return res.status(404).json({ error: 'Video not found' });
+    const result = await updateLike(id, action);
+    res.json(result);
+  } catch (err) {
+    console.error('Error updating reaction:', err);
+    res.status(500).json({ error: 'Failed to update reaction' });
   }
-
-  if (action === 'like') {
-    video.likes = (video.likes || 0) + 1;
-  } else {
-    video.dislikes = (video.dislikes || 0) + 1;
-  }
-
-  res.json({
-    likes: video.likes,
-    dislikes: video.dislikes
-  });
 });
 
 // POST /api/videos/:id/comments - Add new comment
-router.post('/:id/comments', (req, res) => {
-  const { id } = req.params;
-  const { author = 'You', content, avatar } = req.body;
+router.post('/:id/comments', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { author = 'You', content, avatar } = req.body;
 
-  if (!content || !content.trim()) {
-    return res.status(400).json({ error: 'Comment content is required' });
+    if (!content || !content.trim()) {
+      return res.status(400).json({ error: 'Comment content is required' });
+    }
+
+    const newComment = {
+      id: `c-${Date.now()}`,
+      author: author.trim(),
+      avatar: avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80',
+      content: content.trim(),
+      createdAt: 'Just now',
+      likes: 0
+    };
+
+    await insertComment(id, newComment);
+
+    const video = await getVideoById(id);
+
+    res.status(201).json({
+      comment: newComment,
+      totalComments: video ? (video.comments?.length || 1) : 1
+    });
+  } catch (err) {
+    console.error('Error adding comment:', err);
+    res.status(500).json({ error: 'Failed to post comment' });
   }
-
-  const video = videos.find(v => v.id === id);
-  if (!video) {
-    return res.status(404).json({ error: 'Video not found' });
-  }
-
-  const newComment = {
-    id: `c-${Date.now()}`,
-    author: author.trim(),
-    avatar: avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80',
-    content: content.trim(),
-    createdAt: 'Just now',
-    likes: 0
-  };
-
-  video.comments = [newComment, ...(video.comments || [])];
-
-  res.status(201).json({
-    comment: newComment,
-    totalComments: video.comments.length
-  });
 });
 
 // POST /api/videos/upload - Video file upload & job initiation
@@ -195,8 +176,8 @@ router.post('/upload', upload.fields([
       comments: []
     };
 
-    // Prepend to catalog
-    videos = [newVideo, ...videos];
+    // Insert into database
+    await insertVideo(newVideo);
 
     // Trigger transcode pipeline job
     const job = createTranscodeJob(videoId, newVideo);
@@ -219,14 +200,15 @@ router.get('/:id/job', (req, res) => {
 });
 
 // DELETE /api/videos/:id - Delete video
-router.delete('/:id', (req, res) => {
-  const { id } = req.params;
-  const index = videos.findIndex(v => v.id === id);
-  if (index === -1) {
-    return res.status(404).json({ error: 'Video not found' });
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await removeVideo(id);
+    res.json({ success: true, message: 'Video deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting video:', err);
+    res.status(500).json({ error: 'Failed to delete video' });
   }
-  videos.splice(index, 1);
-  res.json({ success: true, message: 'Video deleted successfully' });
 });
 
 export default router;
